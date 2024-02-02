@@ -1,0 +1,7 @@
+.ui.context.menu {
+    display: none;
+    position: absolute;
+}
+.active.ui.context.menu {
+    display: block;
+}

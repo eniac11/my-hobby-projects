@@ -1,0 +1,151 @@
+from typing import Optional
+
+from .html import *
+from .utils import *
+
+__all__ = ['Style', 'StyleSheet', 'StyleContainer', 'add_style_def',
+           'MediaQuery']
+
+
+class Style:
+
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+
+    def __str__(self):
+        if self.value is None:
+            return ''
+        return f"{self.name}: {self.value};"
+
+
+def generate_style_string(styles: dict[str, tuple[list[Style], dict[str, tuple[list[Style]]]]], prefix=""):
+    s = ""
+    for name, style_def in styles.items():
+        print(f"{name=}, {style_def}")
+        styles_s = prefix + name + f"{{ {''.join(map(str, style_def[0]))} }}"
+        psuedo = style_def[1]
+        if psuedo is not None:
+            for psuedo_name, psuedo_style_def in psuedo.items():
+                styles_s = f"{name}:{psuedo_name} {{ {''.join(map(str, psuedo_style_def[0]))} }}"
+                s += "\n" + styles_s
+        s += "\n" + styles_s
+        print(s)
+    return s
+
+
+class StyleContainer:
+
+    def __init__(self, styles=None, ids=None, classes=None):
+        self.styles = styles
+        if styles is None:
+            self.styles = {}
+
+        self.ids = ids
+        if ids is None:
+            self.ids = {}
+
+        self.classes = classes
+        if classes is None:
+            self.classes = {}
+
+    def __str__(self):
+        s = ""
+        s += generate_style_string(self.styles)
+        s += generate_style_string(self.classes, ".")
+        s += generate_style_string(self.ids, "#")
+        return s
+
+
+class MediaQuery(StyleContainer):
+
+    def __init__(self, query: str, styles=None, ids=None, classes=None):
+        super().__init__(styles, ids, classes)
+        self.query = query
+
+    def __str__(self):
+        s = super().__str__()
+        s = f"@media {self.query} {{ {s} }}"
+        return s
+
+
+class StyleSheet(Transform):
+
+    def __init__(self, body: StyleContainer, containers: list[StyleContainer] = None):
+        self.style_body = body
+        self.containers = containers
+        if containers is None:
+            self.containers = []
+        self.containers.insert(0, body)
+
+    def get_class(self, name):
+        for container in self.containers:
+            if type(container) == StyleContainer:
+                if (class_ := container.classes.get(name, None)) is not None:
+                    return class_
+
+    def __transform__(self):
+        s = ""
+        for container in self.containers:
+            s += str(container)
+
+        return Element("style", inner=s)
+
+
+def add_style_def(name, styles, psuedo=None):
+    return {name: [styles, psuedo]}
+
+
+from tools.htmls import config
+
+
+class StyleDef:
+
+    def __init__(self, id_: Optional[str] = None):
+        self.style_sheet: StyleSheet = config.style_sheet
+        self.classes = []
+        self.id = id_
+
+    def add_class(self, name):
+        cls = self.style_sheet.get_class(name)
+        if cls is None:
+            return self
+        self.classes.append(name)
+        return self
+
+    def has_class(self, class_: str):
+        if class_ in self.classes:
+            return True
+        return False
+
+    def __str__(self):
+        classes = ' '.join(self.classes)
+
+        return equatify({"class": classes, "id": self.id})
+
+
+def border_style(style='solid', width='5px'):
+    return {'style': style, 'width': width}
+
+
+def create_border(left: Optional[dict[str, str]] = None, right: Optional[dict[str, str]] = None,
+                  top: Optional[dict[str, str]] = None, bottom: Optional[dict[str, str]] = None,
+                  all: Optional[dict[str, str]] = None):
+    styles = []
+    if all is None:
+        if left is not None:
+            styles.append(Style('border-left', left['width']))
+            styles.append(Style('border-left-style', left['style']))
+        if right is not None:
+            styles.append(Style('border-right', right['width']))
+            styles.append(Style('border-right-style', right['style']))
+        if top is not None:
+            styles.append(Style('border-top', top['width']))
+            styles.append(Style('border-top-style', top['style']))
+        if bottom is not None:
+            styles.append(Style('border-bottom', bottom['width']))
+            styles.append(Style('border-bottom-style', bottom['style']))
+    else:
+        styles.append(Style('border', all['width']))
+        styles.append(Style('border-style', all['style']))
+    return styles

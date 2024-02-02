@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!--<link rel="stylesheet" href="https://pyscript.net/alpha/pyscript.css" />-->
+    <script defer src="https://pyscript.net/alpha/pyscript.js"></script>
+
+  </head>
+  <body>
+    <py-env>
+    - './static/tools-0.0.1-py3-none-any.whl'
+    </py-env>
+
+    <py-script>
+        import main
+        from ipc.common import Side
+        main.ipc_handler.set_side(Side.CLIENT)
+
+        main.test_macro()
+        data = list(main.ipc_handler.send())
+        response = pyfetch("/", method="POST", body=data[0], headers={'Content-Type': 'application/octet-stream'})
+
+    </py-script>
+
+  </body>
+</html>
